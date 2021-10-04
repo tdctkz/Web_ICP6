@@ -1,5 +1,6 @@
 import {Component, ElementRef, OnInit, ViewChild} from '@angular/core';
 import {HttpClient} from '@angular/common/http';
+import {environment} from "./../../environments/environment";
 
 @Component({
   selector: 'app-search-recipe',
@@ -7,28 +8,21 @@ import {HttpClient} from '@angular/common/http';
   styleUrls: ['./search-recipe.component.css']
 })
 export class SearchRecipeComponent implements OnInit {
+  private Eda_id = environment.edamam_id;
+  private Eda_key = environment.edamam_key;
+  private Foursq_id = environment.foursquare_id;
+  private Foursq_key = environment.foursquare_key;
+  private recipeurl = `https://api.edamam.com/search?app_id=${this.Eda_id}&app_key=${this.Eda_key}`;
+  private venueurl = `https://api.foursquare.com/v2/venues/search?client_id=${this.Foursq_id}&client_secret=${this.Foursq_key}&v=20180323`;
   @ViewChild('recipe') recipes: ElementRef;
   @ViewChild('place') places: ElementRef;
-  recipeValue: any;
-  placeValue: any;
-  venueList = [];
-  recipeList = [];
-  formattedAddress = [];
-
-  currentLat: any;
-  currentLong: any;
+  recipe_val: any;
+  place_val: any;
+  venue_list = [];
+  recipe_list = [];
+  current_Lat: any;
+  current_Long: any;
   geolocationPosition: any;
-
-  recepieApi = 'https://api.edamam.com/search?q=';
-  recepieAppid = '&app_id=5deed92a';
-  recepieKey = '&app_key=\n' +
-    'fc8c7ece7ee9a8fcc6103d47e20b5eaf\t';
-  placesApi = 'https://api.foursquare.com/v2/venues/search?';
-  clientdId = 'client_id=XODY5A3XBKCKQUW04ZDAVSGYZH3WJKWSDSSL44OMA33CQG0P';
-  clientSecret = '&client_secret=111Q2C3GVODJ5SJLN5YOEPPS1O4RLUL2HELHL2YI0KTFLRE2';
-  version = '&v=20180323';
-  near = '&near=';
-  query = '&query=';
 
   constructor(private _http: HttpClient) {
   }
@@ -38,35 +32,57 @@ export class SearchRecipeComponent implements OnInit {
     window.navigator.geolocation.getCurrentPosition(
       position => {
         this.geolocationPosition = position;
-        this.currentLat = position.coords.latitude;
-        this.currentLong = position.coords.longitude;
+        this.current_Lat = position.coords.latitude;
+        this.current_Long = position.coords.longitude;
       });
   }
 
   getVenues() {
 
-    this.recipeValue = this.recipes.nativeElement.value;
-    this.placeValue = this.places.nativeElement.value;
+    this.recipe_val = this.recipes.nativeElement.value;
+    this.place_val = this.places.nativeElement.value;
 
-    if (this.recipeValue !== null) {
-      this._http.get( this.recepieApi + this.recipeValue + this.recepieAppid + this.recepieKey).subscribe((res: any) => {
-        console.log(res.hits);
-        this.recipeList = Object.keys(res.hits).map(function (k) {
-          const i = res.hits[k].recipe;
-          return {name: i.label, icon: i.image, url: i.url};
-        });
+    if (this.recipe_val !== null) {
+      /*
+       * code to get recipe
+       */
+      this.recipe_list = [];
+      let food_url = this.recipeurl + '&q='+ this.recipe_val;
+      this._http.get(food_url).subscribe(resp => {
+        let recipes = resp["hits"];
+        recipes.map(ele => {
+          let recipe = ele['recipe'];
+          const recobj = {
+            name : ele .recipe.label,
+            url:ele.recipe.url,
+            icon: ele.recipe.image
+          }
+          this.recipe_list.push(recobj);
+
+        })
       });
+
     }
 
-    if (this.placeValue != null && this.placeValue !== '' && this.recipeValue != null && this.recipeValue !== '') {
-      this._http.get( this.placesApi  + this.clientdId + this.clientSecret + this.version
-        + this.near + this.placeValue).subscribe((res: any) => {
-        console.log(res);
-        this.venueList = Object.keys(res.response.venues).map(function (k) {
-          const i = res.response.venues[k];
-          return {name: i.name, formattedAddress: i.location.formattedAddress};
-        });
-      });
+    if (this.place_val != null && this.place_val !== '' && this.recipe_val != null && this.recipe_val !== '') {
+      /*
+       * code to get place
+       */
+      this.venue_list = [];
+      let place_url = this.venueurl + "&query=" + this.recipe_val + '&near='+ this.place_val;
+      this._http.get(place_url).subscribe(resp => {
+        let venues = resp['response']['venues'];
+        venues.map(ele => {
+
+          const venobj = {
+            name: ele.name,
+            location : {
+              formattedAddress: [ele.location.address,ele.location.city,ele.location.country]
+            }
+          }
+          this.venue_list.push(venobj);
+        })
+      })
     }
   }
 }
